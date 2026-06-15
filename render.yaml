@@ -64,13 +64,15 @@ services:
     plan: free
     rootDir: frontend
     buildCommand: npm ci && npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
-    startCommand: node .next/standalone/server.js
+    startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
     healthCheckPath: /login
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: "20.11.0"
+      - key: HOSTNAME
+        value: "0.0.0.0"
       - key: NEXT_PUBLIC_API_URL
         sync: false
       - key: NEXT_PUBLIC_WS_URL
