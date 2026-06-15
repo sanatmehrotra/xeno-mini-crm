@@ -1,0 +1,103 @@
+# =============================================================================
+# docker-compose.yml — Local Development Stack
+# =============================================================================
+# HOW ENV VARS WORK HERE:
+#   - Secrets/config live in .env files (gitignored, never hardcoded here)
+#   - Only service-discovery overrides go in the `environment:` block
+#     (because localhost URLs in .env don't work inside containers —
+#      containers must use the compose service name, e.g. "postgres" not "localhost")
+#
+# FOR PRODUCTION: do NOT use this file directly.
+#   Use docker-compose.prod.yml or deploy via Railway/Render/Fly.io
+#   and set secrets in the platform's dashboard.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — primary database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: xeno_crm
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d xeno_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — cache and future Celery broker
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # crm-backend — main API (port 8000)
+  # ---------------------------------------------------------------------------
+  crm-backend:
+    build: ./crm-backend
+    env_file:
+      - ./crm-backend/.env     # all secrets loaded from file (gitignored)
+    environment:
+      # Override only the URLs that differ inside Docker vs local machine.
+      # These MUST use compose service names, not "localhost".
+      DATABASE_URL: postgresql+asyncpg://user:pass@postgres:5432/xeno_crm
+      REDIS_URL: redis://redis:6379/0
+      CHANNEL_SERVICE_URL: http://channel-service:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # channel-service — message delivery simulator (port 8001)
+  # ---------------------------------------------------------------------------
+  channel-service:
+    build: ./channel-service
+    env_file:
+      - ./channel-service/.env  # loaded from file
+    environment:
+      # Must point to the crm-backend container, not localhost
+      CRM_CALLBACK_URL: http://crm-backend:8000/api/v1/webhooks/channel-receipt
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # crm-worker — Celery background worker (Phase 10, uncomment to enable)
+  # ---------------------------------------------------------------------------
+  # crm-worker:
+  #   build: ./crm-backend
+  #   command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4
+  #   env_file: ./crm-backend/.env
+  #   environment:
+  #     DATABASE_URL: postgresql+asyncpg://user:pass@postgres:5432/xeno_crm
+  #     REDIS_URL: redis://redis:6379/0
+  #   depends_on: [postgres, redis]
+  #   restart: unless-stopped
+
+# =============================================================================
+# Volumes — named volumes persist data across container restarts.
+# To wipe all data and start fresh: docker compose down -v
+# =============================================================================
+volumes:
+  pgdata:

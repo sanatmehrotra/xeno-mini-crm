@@ -1,0 +1,31 @@
+# =============================================================================
+# render.yaml — Render deployment configuration
+# =============================================================================
+# Commit this file to the repo root (or frontend/).
+# Render reads it to auto-configure the web service.
+#
+# After connecting the repo in Render:
+#   1. Set NEXT_PUBLIC_API_URL to your Railway backend URL
+#   2. Set NEXT_PUBLIC_WS_URL to your Railway backend URL (wss://)
+# =============================================================================
+
+services:
+  - type: web
+    name: brewbharat-console
+    runtime: node
+    region: singapore        # closest to India
+    plan: free               # upgrade to Starter ($7/mo) for always-on
+    rootDir: frontend
+    buildCommand: npm ci && npm run build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # Set these manually in Render dashboard after first deploy:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false           # placeholder — fill in Railway backend URL
+      - key: NEXT_PUBLIC_WS_URL
+        sync: false           # placeholder — fill in Railway backend WS URL

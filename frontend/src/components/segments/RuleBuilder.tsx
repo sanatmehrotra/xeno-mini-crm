@@ -1,0 +1,182 @@
+"use client";
+/**
+ * RuleBuilder.tsx — recursive visual segment rule editor.
+ *
+ * Renders a RuleGroup (AND/OR + list of conditions or nested groups).
+ * Fields and operators are hardcoded to the same allowlist as the backend's
+ * compile_rules() — see ADR-006. The UI will never offer a field the backend rejects.
+ */
+import { SEGMENT_FIELDS, SEGMENT_OPS, RuleGroup, RuleCondition, SegmentRule } from "@/lib/api/segments";
+
+/* ── Type guards ────────────────────────────────────────────────────────────── */
+
+function isGroup(r: SegmentRule): r is RuleGroup {
+  return "operator" in r;
+}
+
+/* ── Empty constructors ─────────────────────────────────────────────────────── */
+
+const emptyCondition = (): RuleCondition => ({
+  field: "total_spent",
+  op: "gte",
+  value: "0",
+});
+
+const emptyGroup = (): RuleGroup => ({
+  operator: "AND",
+  conditions: [emptyCondition()],
+});
+
+/* ── Single condition row ───────────────────────────────────────────────────── */
+
+function ConditionRow({
+  condition,
+  onChange,
+  onRemove,
+}: {
+  condition: RuleCondition;
+  onChange: (c: RuleCondition) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 group">
+      {/* Field */}
+      <select
+        className="input flex-1 text-xs"
+        value={condition.field}
+        onChange={(e) => onChange({ ...condition, field: e.target.value })}
+      >
+        {SEGMENT_FIELDS.map((f) => (
+          <option key={f.value} value={f.value}>{f.label}</option>
+        ))}
+      </select>
+
+      {/* Operator */}
+      <select
+        className="input w-36 text-xs"
+        value={condition.op}
+        onChange={(e) => onChange({ ...condition, op: e.target.value })}
+      >
+        {SEGMENT_OPS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+
+      {/* Value */}
+      <input
+        className="input w-28 text-xs font-mono"
+        value={String(condition.value)}
+        onChange={(e) => onChange({ ...condition, value: e.target.value })}
+        placeholder="value"
+      />
+
+      {/* Remove */}
+      <button
+        onClick={onRemove}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-brick text-sm w-6"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+/* ── Rule group (recursive) ─────────────────────────────────────────────────── */
+
+export function RuleGroupEditor({
+  group,
+  onChange,
+  onRemove,
+  depth = 0,
+}: {
+  group: RuleGroup;
+  onChange: (g: RuleGroup) => void;
+  onRemove?: () => void;
+  depth?: number;
+}) {
+  const updateCondition = (i: number, updated: SegmentRule) => {
+    const conditions = [...group.conditions];
+    conditions[i] = updated;
+    onChange({ ...group, conditions });
+  };
+
+  const removeCondition = (i: number) => {
+    const conditions = group.conditions.filter((_, idx) => idx !== i);
+    onChange({ ...group, conditions });
+  };
+
+  const addCondition = () =>
+    onChange({ ...group, conditions: [...group.conditions, emptyCondition()] });
+
+  const addGroup = () =>
+    onChange({ ...group, conditions: [...group.conditions, emptyGroup()] });
+
+  return (
+    <div
+      className={`space-y-3 ${depth > 0 ? "ml-4 pl-4 border-l-2 border-border rounded-l" : ""}`}
+    >
+      {/* Operator pill */}
+      <div className="flex items-center gap-2">
+        <span className="text-muted text-xs">Match</span>
+        {(["AND", "OR"] as const).map((op) => (
+          <button
+            key={op}
+            onClick={() => onChange({ ...group, operator: op })}
+            className={`px-2.5 py-0.5 rounded text-xs font-mono font-medium transition-colors ${
+              group.operator === op
+                ? op === "AND"
+                  ? "bg-copper/20 text-copper border border-copper/40"
+                  : "bg-sage/20 text-sage border border-sage/40"
+                : "bg-surface border border-border text-muted hover:text-parchment"
+            }`}
+          >
+            {op}
+          </button>
+        ))}
+        <span className="text-muted text-xs">of these conditions</span>
+        {onRemove && (
+          <button
+            onClick={onRemove}
+            className="ml-auto text-muted hover:text-brick text-xs transition-colors"
+          >
+            Remove group
+          </button>
+        )}
+      </div>
+
+      {/* Conditions */}
+      {group.conditions.map((c, i) =>
+        isGroup(c) ? (
+          <RuleGroupEditor
+            key={i}
+            group={c}
+            onChange={(updated) => updateCondition(i, updated)}
+            onRemove={() => removeCondition(i)}
+            depth={depth + 1}
+          />
+        ) : (
+          <ConditionRow
+            key={i}
+            condition={c}
+            onChange={(updated) => updateCondition(i, updated)}
+            onRemove={() => removeCondition(i)}
+          />
+        )
+      )}
+
+      {/* Add buttons */}
+      <div className="flex gap-2">
+        <button onClick={addCondition} className="btn-ghost text-xs px-3 py-1.5">
+          + Condition
+        </button>
+        {depth < 2 && (
+          <button onClick={addGroup} className="btn-ghost text-xs px-3 py-1.5">
+            + Group
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export { emptyGroup, emptyCondition };

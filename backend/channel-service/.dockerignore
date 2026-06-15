@@ -1,0 +1,14 @@
+# .dockerignore — channel-service
+.env
+.env.*
+*.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.git/
+tests/
+.pytest_cache/
+*.md
+.DS_Store
+Thumbs.db

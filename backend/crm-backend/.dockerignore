@@ -1,0 +1,30 @@
+# .dockerignore — crm-backend
+# Keeps the Docker build context small and prevents secrets leaking into the image.
+
+.env
+.env.*
+*.env
+
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+.git/
+.gitignore
+.dockerignore
+
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+*.md
+docs/
+
+seed_data/customers.json
+seed_data/orders.json
+
+.DS_Store
+Thumbs.db
