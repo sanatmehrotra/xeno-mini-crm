@@ -1,11 +1,8 @@
 # =============================================================================
-# render.yaml — BrewBharat CRM — all 3 services in one Blueprint
+# render.yaml — BrewBharat CRM — Render Blueprint (3 services)
 # =============================================================================
-# Deploy steps:
-#   1. Push this repo to GitHub
-#   2. Go to https://dashboard.render.com → New → Blueprint
-#   3. Connect your GitHub repo — Render reads this file automatically
-#   4. Fill in the "sync: false" env vars in the Render dashboard
+# ALL values come from .env files / Render dashboard — nothing hardcoded here.
+# Every  sync: false  var must be entered manually in Render dashboard.
 # =============================================================================
 
 services:
@@ -20,43 +17,30 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
-      # Database — paste your Supabase connection string
       - key: DATABASE_URL
         sync: false
-
-      # Redis — Render Redis add-on URL (or use Upstash free tier)
       - key: REDIS_URL
         sync: false
-
-      # Channel service — fill in after channel-service is deployed
       - key: CHANNEL_SERVICE_URL
         sync: false
       - key: CHANNEL_HMAC_SECRET
-        value: xeno-brewbharat-hmac-secret-32ch   # change before go-live
-
-      # Auth
+        sync: false
       - key: JWT_SECRET
-        generateValue: true                         # Render generates a secure random value
+        generateValue: true
       - key: ADMIN_EMAIL
-        value: admin@xeno.local
+        sync: false
       - key: ADMIN_PASSWORD_HASH
-        sync: false                                 # bcrypt hash — see instructions below
-
-      # AI
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: AI_MODEL_FAST
-        value: deepseek/deepseek-chat-v3-0324
+        sync: false
       - key: AI_MODEL_SMART
-        value: deepseek/deepseek-r1
-
-      # CORS — add frontend URL after frontend is deployed
+        sync: false
       - key: FRONTEND_ORIGINS
         sync: false
-
-      # App
       - key: ATTRIBUTION_WINDOW_HOURS
-        value: "72"
+        sync: false
 
   # ── 2. Channel Service (FastAPI) ──────────────────────────────────────────
   - type: web
@@ -68,13 +52,13 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
-      # CRM backend webhook — fill in after crm-backend is deployed
       - key: CRM_CALLBACK_URL
-        sync: false    # e.g. https://brewbharat-crm-backend.onrender.com/api/v1/webhooks/channel-receipt
+        sync: false
       - key: HMAC_SECRET
-        value: xeno-brewbharat-hmac-secret-32ch   # must match CHANNEL_HMAC_SECRET above
+        sync: false
+      # PORT is injected by Render automatically — do not set it here
 
-  # ── 3. Frontend (Next.js) ────────────────────────────────────────────────
+  # ── 3. Frontend (Next.js) ─────────────────────────────────────────────────
   - type: web
     name: brewbharat-console
     runtime: node
@@ -86,11 +70,10 @@ services:
     healthCheckPath: /login
     envVars:
       - key: NODE_ENV
-        value: production
+        sync: false
       - key: NODE_VERSION
-        value: "20"
-      # Fill these in after backends are deployed:
+        sync: false
       - key: NEXT_PUBLIC_API_URL
-        sync: false    # e.g. https://brewbharat-crm-backend.onrender.com/api/v1
+        sync: false
       - key: NEXT_PUBLIC_WS_URL
-        sync: false    # e.g. wss://brewbharat-crm-backend.onrender.com
+        sync: false
