@@ -5,7 +5,7 @@ import apiClient from "./client";
 export interface DraftMessageRequest {
   segment_id: string;
   channel: string;
-  tone?: string;
+  goal?: string;
 }
 
 export interface DraftMessageResponse {

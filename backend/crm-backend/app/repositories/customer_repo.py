@@ -53,11 +53,14 @@ async def list_customers(
     search: str | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
+    city: str | None = None,
+    tier: str | None = None,
 ) -> tuple[list[Customer], int]:
     """
     Return a page of active customers + total count.
     `search` matches name or email (case-insensitive).
     `sort_by` is validated to an allowlist to prevent injection.
+    `city` and `tier` filter on the JSONB `attributes` column.
     """
     allowed_sort = {"created_at", "name", "email", "total_spent", "order_count", "last_purchase_at"}
     if sort_by not in allowed_sort:
@@ -73,6 +76,14 @@ async def list_customers(
         base = base.where(
             or_(Customer.name.ilike(pattern), Customer.email.ilike(pattern))
         )
+
+    if city:
+        # JSONB text extraction: attributes->>'city' = :city
+        base = base.where(Customer.attributes["city"].as_string() == city)
+
+    if tier:
+        # JSONB text extraction: attributes->>'tier' = :tier
+        base = base.where(Customer.attributes["tier"].as_string() == tier)
 
     # Total count
     count_q = select(func.count()).select_from(base.subquery())

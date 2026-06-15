@@ -27,9 +27,12 @@ async def list_customers(
     search: str | None = Query(None),
     sort_by: str = Query("created_at"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
+    city: str | None = Query(None),
+    tier: str | None = Query(None),
 ):
     customers, total = await customer_service.list_customers(
-        db, page=page, limit=limit, search=search, sort_by=sort_by, order=order
+        db, page=page, limit=limit, search=search, sort_by=sort_by, order=order,
+        city=city, tier=tier,
     )
     data = [CustomerOut.model_validate(c) for c in customers]
     return success(

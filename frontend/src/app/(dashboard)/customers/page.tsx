@@ -141,11 +141,20 @@ export default function CustomersPage() {
   const [sortBy,  setSortBy]  = useState("last_purchase_at");
   const [order,   setOrder]   = useState<"asc"|"desc">("desc");
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [cityFilter, setCityFilter] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customers", page, search, sortBy, order],
+    queryKey: ["customers", page, search, sortBy, order, cityFilter, tierFilter],
     queryFn: () =>
-      customersApi.list({ page, limit: 50, search: search || undefined, sort_by: sortBy, order }).then((r) => r.data),
+      customersApi.list({
+        page, limit: 50,
+        search: search || undefined,
+        sort_by: sortBy,
+        order,
+        city: cityFilter || undefined,
+        tier: tierFilter || undefined,
+      }).then((r) => r.data),
     placeholderData: (prev) => prev,
   });
 
@@ -164,7 +173,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <input
           className="input max-w-xs"
           placeholder="Search name or email…"
@@ -186,6 +195,37 @@ export default function CustomersPage() {
         >
           {order === "desc" ? "↓ DESC" : "↑ ASC"}
         </button>
+        {/* City quick-filter */}
+        <select
+          className="input w-36"
+          value={cityFilter}
+          onChange={(e) => { setCityFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Cities</option>
+          {["Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad"].map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        {/* Tier quick-filter */}
+        <select
+          className="input w-32"
+          value={tierFilter}
+          onChange={(e) => { setTierFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Tiers</option>
+          {["platinum","gold","silver","bronze"].map((t) => (
+            <option key={t} value={t} className="capitalize">{t}</option>
+          ))}
+        </select>
+        {/* Clear filters */}
+        {(cityFilter || tierFilter) && (
+          <button
+            className="btn-ghost text-xs px-3 py-2 text-brick hover:border-brick/50"
+            onClick={() => { setCityFilter(""); setTierFilter(""); setPage(1); }}
+          >
+            ✕ Clear filters
+          </button>
+        )}
       </div>
 
       {/* Table */}

@@ -49,6 +49,8 @@ export const customersApi = {
     search?: string;
     sort_by?: string;
     order?: "asc" | "desc";
+    city?: string;
+    tier?: string;
   }) => apiClient.get<CustomersListResponse>("/customers", { params }),
 
   get: (id: string) =>

@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { segmentsApi, Segment } from "@/lib/api/segments";
 import Link from "next/link";
+import { toast } from "sonner";
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -16,7 +17,11 @@ export default function SegmentsPage() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => segmentsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["segments"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["segments"] });
+      toast.success("Segment deleted");
+    },
+    onError: () => toast.error("Failed to delete segment"),
   });
 
   const segments = (data ?? []) as Segment[];
@@ -70,7 +75,14 @@ export default function SegmentsPage() {
                 <button
                   className="btn-ghost text-xs px-2 py-1.5 hover:border-brick/50 hover:text-brick"
                   onClick={() => {
-                    if (confirm(`Delete "${seg.name}"?`)) deleteMut.mutate(seg.id);
+                    toast("Delete this segment?", {
+                      description: seg.name,
+                      action: {
+                        label: "Delete",
+                        onClick: () => deleteMut.mutate(seg.id),
+                      },
+                      cancel: { label: "Cancel", onClick: () => {} },
+                    });
                   }}
                 >
                   ✕

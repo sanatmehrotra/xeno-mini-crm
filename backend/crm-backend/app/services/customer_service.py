@@ -34,10 +34,13 @@ async def list_customers(
     search: str | None,
     sort_by: str,
     order: str,
+    city: str | None = None,
+    tier: str | None = None,
 ):
     """Return (customers, total) for pagination."""
     return await customer_repo.list_customers(
-        db, page=page, limit=limit, search=search, sort_by=sort_by, order=order
+        db, page=page, limit=limit, search=search, sort_by=sort_by, order=order,
+        city=city, tier=tier,
     )
 
 

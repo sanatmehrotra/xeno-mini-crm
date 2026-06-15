@@ -1,17 +1,17 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { segmentsApi, SegmentRule, RuleGroup } from "@/lib/api/segments";
 import { RuleGroupEditor, emptyGroup } from "@/components/segments/RuleBuilder";
+import { toast } from "sonner";
 
-/* ── Live preview panel ─────────────────────────────────────────────────────── */
+/* ── Live preview panel ────────────────────────────────────────────────────── */
 
 function PreviewPanel({ rules }: { rules: SegmentRule }) {
   const { data, isFetching, error } = useQuery({
     queryKey: ["segment-preview", JSON.stringify(rules)],
     queryFn: () => segmentsApi.preview(rules).then((r) => r.data.data),
-    // Debounce by making staleTime short — refetches whenever rules key changes
     staleTime: 0,
     retry: false,
   });
@@ -49,34 +49,33 @@ function PreviewPanel({ rules }: { rules: SegmentRule }) {
   );
 }
 
-/* ── New Segment page ───────────────────────────────────────────────────────── */
+/* ── New Segment page ─────────────────────────────────────────────────────────── */
 
 type Tab = "build" | "nl";
 
 export default function NewSegmentPage() {
-  const router  = useRouter();
-  const qc      = useQueryClient();
-  const [tab, setTab]       = useState<Tab>("build");
-  const [name, setName]     = useState("");
-  const [rules, setRules]   = useState<RuleGroup>(emptyGroup());
-  const [nlText, setNLText] = useState("");
+  const router = useRouter();
+  const qc     = useQueryClient();
+  const [tab, setTab]         = useState<Tab>("build");
+  const [name, setName]       = useState("");
+  const [rules, setRules]     = useState<RuleGroup>(emptyGroup());
+  const [nlText, setNLText]   = useState("");
   const [nlRules, setNLRules] = useState<SegmentRule | null>(null);
   const [nlLoading, setNLLoading] = useState(false);
   const [nlError, setNLError]     = useState<string | null>(null);
 
-  // Active rules depend on current tab
   const activeRules: SegmentRule = tab === "nl" && nlRules ? nlRules : rules;
 
-  // Save segment
   const saveMut = useMutation({
     mutationFn: () => segmentsApi.create(name, activeRules),
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["segments"] });
+      toast.success(`Segment "${name}" saved with ${res.data.data.member_count ?? 0} members`);
       router.push("/segments");
     },
+    onError: () => toast.error("Failed to save segment — check your rules"),
   });
 
-  // NL → rules
   const handleGenerate = async () => {
     if (!nlText.trim()) return;
     setNLLoading(true);
@@ -84,8 +83,10 @@ export default function NewSegmentPage() {
     try {
       const res = await segmentsApi.fromNL(nlText);
       setNLRules(res.data.data.rules);
+      toast.success("Rules generated from your description");
     } catch {
       setNLError("Could not generate rules. Try rephrasing.");
+      toast.error("Failed to generate rules");
     } finally {
       setNLLoading(false);
     }
@@ -98,7 +99,6 @@ export default function NewSegmentPage() {
         <p className="text-muted text-sm mt-1">Define who belongs in this audience</p>
       </div>
 
-      {/* Segment name */}
       <input
         className="input max-w-md text-base"
         placeholder="Segment name, e.g. Lapsed High-Value Mumbai"
@@ -106,7 +106,6 @@ export default function NewSegmentPage() {
         onChange={(e) => setName(e.target.value)}
       />
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
         {(["build", "nl"] as Tab[]).map((t) => (
           <button
@@ -123,15 +122,11 @@ export default function NewSegmentPage() {
         ))}
       </div>
 
-      {/* Content */}
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-4">
           {tab === "build" ? (
             <div className="card">
-              <RuleGroupEditor
-                group={rules}
-                onChange={setRules}
-              />
+              <RuleGroupEditor group={rules} onChange={setRules} />
             </div>
           ) : (
             <div className="card space-y-4">
@@ -153,17 +148,14 @@ export default function NewSegmentPage() {
                   </span>
                 ) : "✨ Generate Rules"}
               </button>
-
               {nlError && <p className="text-brick text-sm">{nlError}</p>}
-
-              {/* AI-generated rules shown read-only */}
               {nlRules && (
                 <div className="mt-2 border border-copper/20 rounded p-4 bg-espresso/50">
                   <p className="text-muted text-xs uppercase tracking-wider mb-3">AI-Generated Rules (read-only)</p>
                   {"operator" in nlRules ? (
                     <RuleGroupEditor
                       group={nlRules as RuleGroup}
-                      onChange={() => {}}  // read-only
+                      onChange={() => {}}
                     />
                   ) : (
                     <pre className="text-xs font-mono text-parchment">{JSON.stringify(nlRules, null, 2)}</pre>
@@ -173,12 +165,9 @@ export default function NewSegmentPage() {
             </div>
           )}
         </div>
-
-        {/* Preview panel */}
         <PreviewPanel rules={activeRules} />
       </div>
 
-      {/* Save */}
       <div className="flex items-center gap-3">
         <button
           className="btn-primary"

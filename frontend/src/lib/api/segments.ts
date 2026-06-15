@@ -67,10 +67,10 @@ export const segmentsApi = {
   preview: (rules: SegmentRule) =>
     apiClient.post<SegmentPreviewResponse>("/segments/preview", { rules }),
 
-  fromNL: (description: string) =>
+  fromNL: (query: string) =>
     apiClient.post<{ data: { rules: SegmentRule; description: string }; meta: Record<string, unknown> }>(
       "/segments/from-nl",
-      { description }
+      { query }
     ),
 
   create: (name: string, rules: SegmentRule) =>

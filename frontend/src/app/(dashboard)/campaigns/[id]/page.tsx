@@ -1,10 +1,11 @@
 "use client";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { campaignsApi, CampaignAnalytics } from "@/lib/api/campaigns";
 import { aiApi } from "@/lib/api/ai";
 import { useCampaignSocket } from "@/lib/hooks/useCampaignSocket";
 import { useState } from "react";
+import { toast } from "sonner";
 
 /* ── Delivery funnel bar ────────────────────────────────────────────────────── */
 
@@ -43,6 +44,7 @@ function FunnelBar({
 export default function CampaignDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const router   = useRouter();
+  const qc       = useQueryClient();
   const [insights, setInsights] = useState<string | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
@@ -62,6 +64,13 @@ export default function CampaignDetailPage() {
 
   const launchMut = useMutation({
     mutationFn: () => campaignsApi.launch(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["campaign", id] });
+      qc.invalidateQueries({ queryKey: ["campaign-analytics", id] });
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
+      toast.success("Campaign launched! 🚀");
+    },
+    onError: () => toast.error("Failed to launch campaign"),
   });
 
   const campaign  = campRes;

@@ -22,13 +22,18 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
+# Supabase requires SSL; local Postgres does not.
+# Detect by checking if the URL points to supabase.com.
+_connect_args = {"ssl": "require"} if "supabase.com" in settings.database_url else {}
+
 # Create async engine — echo=False in prod; can toggle via env if needed
 engine = create_async_engine(
     settings.database_url,
     echo=False,
     pool_pre_ping=True,       # detect stale connections before use
-    pool_size=10,
-    max_overflow=20,
+    pool_size=5,
+    max_overflow=10,
+    connect_args=_connect_args,
 )
 
 # Session factory — expire_on_commit=False avoids lazy-load issues after commit

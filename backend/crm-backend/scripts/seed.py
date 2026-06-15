@@ -5,8 +5,8 @@ Usage (from inside the container or with the service running locally):
     python scripts/seed.py [--base-url http://localhost:8000] [--token <jwt>]
 
 The script calls:
-  POST /api/v1/customers/import  (all 275 customers)
-  POST /api/v1/orders/import     (all 1200 orders, in batches)
+  POST /api/v1/customers/import  (275 customers, in batches)
+  POST /api/v1/orders/import     (1200 orders, in batches)
 """
 
 import argparse
@@ -17,7 +17,8 @@ from pathlib import Path
 import httpx
 
 SEED_DIR = Path(__file__).parent.parent / "seed_data"
-BATCH_SIZE = 100  # orders are imported in batches to avoid large payloads
+CUSTOMER_BATCH = 50   # smaller batches for remote DB (Supabase latency)
+ORDER_BATCH    = 50
 
 
 def load_json(filename: str) -> list:
@@ -42,35 +43,57 @@ def main():
         headers["Authorization"] = f"Bearer {args.token}"
 
     customers = load_json("customers.json")
-    orders = load_json("orders.json")
+    orders    = load_json("orders.json")
 
-    print(f"Seeding {len(customers)} customers...")
-    with httpx.Client(timeout=60.0) as client:
-        resp = client.post(
-            f"{base}/api/v1/customers/import",
-            json=customers,
-            headers=headers,
-        )
-        resp.raise_for_status()
-        result = resp.json()
-        print(f"  Customers: {result}")
+    # ── Customers ────────────────────────────────────────────────────────────
+    print(f"Seeding {len(customers)} customers in batches of {CUSTOMER_BATCH}...")
+    total_cust_created = total_cust_skipped = 0
+    with httpx.Client(timeout=120.0) as client:
+        for i in range(0, len(customers), CUSTOMER_BATCH):
+            batch = customers[i : i + CUSTOMER_BATCH]
+            resp = client.post(
+                f"{base}/api/v1/customers/import",
+                json=batch,
+                headers=headers,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            # Support both {"created":x,"skipped":y} and {"data":{...}} shapes
+            data = result.get("data", result)
+            created = data.get("created", 0)
+            skipped = data.get("skipped", 0)
+            total_cust_created += created
+            total_cust_skipped += skipped
+            batch_num = i // CUSTOMER_BATCH + 1
+            total_batches = (len(customers) + CUSTOMER_BATCH - 1) // CUSTOMER_BATCH
+            print(f"  Customers batch {batch_num}/{total_batches}: created={created} skipped={skipped}")
 
-        print(f"Seeding {len(orders)} orders in batches of {BATCH_SIZE}...")
-        total_created = total_skipped = 0
-        for i in range(0, len(orders), BATCH_SIZE):
-            batch = orders[i : i + BATCH_SIZE]
+    print(f"  Total customers: created={total_cust_created} skipped={total_cust_skipped}")
+
+    # ── Orders ────────────────────────────────────────────────────────────────
+    print(f"\nSeeding {len(orders)} orders in batches of {ORDER_BATCH}...")
+    total_ord_created = total_ord_skipped = 0
+    with httpx.Client(timeout=120.0) as client:
+        for i in range(0, len(orders), ORDER_BATCH):
+            batch = orders[i : i + ORDER_BATCH]
             resp = client.post(
                 f"{base}/api/v1/orders/import",
                 json=batch,
                 headers=headers,
             )
             resp.raise_for_status()
-            result = resp.json()["data"]
-            total_created += result.get("created", 0)
-            total_skipped += result.get("skipped", 0)
-            print(f"  Batch {i // BATCH_SIZE + 1}: created={result.get('created')} skipped={result.get('skipped')}")
+            result = resp.json().get("data", resp.json())
+            created = result.get("created", 0)
+            skipped = result.get("skipped", 0)
+            total_ord_created += created
+            total_ord_skipped += skipped
+            batch_num = i // ORDER_BATCH + 1
+            total_batches = (len(orders) + ORDER_BATCH - 1) // ORDER_BATCH
+            print(f"  Orders batch {batch_num}/{total_batches}: created={created} skipped={skipped}")
 
-        print(f"\nDone. Orders: created={total_created}, skipped={total_skipped}")
+    print(f"\n✓ Done!")
+    print(f"  Customers : created={total_cust_created}  skipped={total_cust_skipped}")
+    print(f"  Orders    : created={total_ord_created}  skipped={total_ord_skipped}")
 
 
 if __name__ == "__main__":

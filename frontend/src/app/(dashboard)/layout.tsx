@@ -80,14 +80,19 @@ export default function DashboardLayout({
 
   // Validated → render the full dashboard
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-espresso)" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--color-espresso)" }}>
       {/* Left sidebar */}
       <Sidebar currentPath={pathname} email={email ?? ""} />
 
       {/* Main content */}
       <main
-        className="flex-1 overflow-y-auto transition-all duration-300"
-        style={{ marginRight: copilotOpen ? "380px" : "0" }}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          minWidth: 0,
+          transition: "margin-right 0.3s ease",
+          marginRight: copilotOpen ? "380px" : "0",
+        }}
       >
         <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "2rem 1.5rem" }}>
           {children}

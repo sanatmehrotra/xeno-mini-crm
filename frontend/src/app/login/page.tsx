@@ -87,7 +87,7 @@ export default function LoginPage() {
             <input
               type="email"
               autoComplete="email"
-              placeholder="admin@brewbharat.in"
+              placeholder="admin@xeno.local"
               className={`input ${errors.email ? "border-brick focus:border-brick focus:ring-brick/30" : ""}`}
               {...register("email")}
             />
@@ -139,6 +139,9 @@ export default function LoginPage() {
 
         <p className="text-center text-muted/50 text-xs mt-6">
           Single-admin internal tool · BrewBharat CRM
+        </p>
+        <p className="text-center text-muted/30 text-[11px] mt-2 font-mono">
+          admin@xeno.local · admin123
         </p>
       </div>
     </main>

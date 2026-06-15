@@ -246,14 +246,22 @@ TOOL_SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "preview_segment",
-            "description": "Dry-run a set of segment rules — returns count and sample customers. Does NOT save.",
+            "description": (
+                "Dry-run a set of segment rules — returns count and sample customers. Does NOT save. "
+                "Rules format: {\"operator\": \"AND\", \"conditions\": [{\"field\": \"total_spent\", \"op\": \"gte\", \"value\": 5000}]}. "
+                "Supported ops: eq, neq, gt, gte, lt, lte, in, contains, between. "
+                "IMPORTANT: use 'conditions' (not 'rules') as the list key inside the rule tree."
+            ),
             "parameters": {
                 "type": "object",
                 "required": ["rules"],
                 "properties": {
                     "rules": {
                         "type": "object",
-                        "description": "Nested AND/OR rule tree",
+                        "description": (
+                            "Rule tree with 'operator' (AND/OR) and 'conditions' list. "
+                            "Example: {\"operator\": \"AND\", \"conditions\": [{\"field\": \"total_spent\", \"op\": \"gte\", \"value\": 1000}]}"
+                        ),
                     }
                 },
             },
@@ -263,14 +271,24 @@ TOOL_SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "create_segment",
-            "description": "Save a segment permanently and compute its members.",
+            "description": (
+                "Save a segment permanently and compute its members. "
+                "Rules format: {\"operator\": \"AND\", \"conditions\": [{\"field\": \"total_spent\", \"op\": \"gte\", \"value\": 5000}]}. "
+                "IMPORTANT: use 'conditions' (not 'rules') as the list key inside the rule tree."
+            ),
             "parameters": {
                 "type": "object",
                 "required": ["name", "rules"],
                 "properties": {
                     "name": {"type": "string"},
                     "description": {"type": "string"},
-                    "rules": {"type": "object"},
+                    "rules": {
+                        "type": "object",
+                        "description": (
+                            "Rule tree with 'operator' (AND/OR) and 'conditions' list. "
+                            "Example: {\"operator\": \"AND\", \"conditions\": [{\"field\": \"total_spent\", \"op\": \"gte\", \"value\": 1000}]}"
+                        ),
+                    },
                 },
             },
         },
