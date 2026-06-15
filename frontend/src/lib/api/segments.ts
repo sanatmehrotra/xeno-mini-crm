@@ -1,6 +1,6 @@
 import apiClient from "./client";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────
 
 /** A single condition: { field, op, value } */
 export interface RuleCondition {
@@ -32,21 +32,26 @@ export interface SegmentPreviewResponse {
   meta: Record<string, unknown>;
 }
 
-// Allowlisted fields — must match backend compile_rules() exactly (ADR-006)
+// ── Field & op definitions — MUST match backend compile_rules() exactly ───
+// Backend ALLOWED_DIRECT_FIELDS: total_spent, order_count
+// Backend special fields: days_since_last_purchase, days_since_first_purchase, tags
+// Backend JSONB fields: attributes.<key>  (city, tier, acquisition_channel)
+// Backend ALLOWED_OPS: eq, neq, gt, gte, lt, lte, in, contains, between
+
 export const SEGMENT_FIELDS = [
   { value: "total_spent",               label: "Total Spent (₹)" },
   { value: "order_count",               label: "Order Count" },
   { value: "days_since_last_purchase",  label: "Days Since Last Purchase" },
   { value: "days_since_first_purchase", label: "Days Since First Purchase" },
-  { value: "city",                      label: "City" },
-  { value: "tier",                      label: "Tier" },
-  { value: "acquisition_channel",       label: "Acquisition Channel" },
-  { value: "tags_contains",             label: "Tag" },
+  { value: "attributes.city",           label: "City" },
+  { value: "attributes.tier",           label: "Tier" },
+  { value: "attributes.acquisition_channel", label: "Acquisition Channel" },
+  { value: "tags",                      label: "Tag" },
 ] as const;
 
 export const SEGMENT_OPS = [
   { value: "eq",       label: "is" },
-  { value: "ne",       label: "is not" },
+  { value: "neq",      label: "is not" },
   { value: "gt",       label: "greater than" },
   { value: "gte",      label: "at least" },
   { value: "lt",       label: "less than" },
@@ -55,7 +60,16 @@ export const SEGMENT_OPS = [
   { value: "contains", label: "contains" },
 ] as const;
 
-// ── API calls ─────────────────────────────────────────────────────────────────
+// ── Value hints for categorical fields ─────────────────────────────────────
+
+export const FIELD_VALUE_HINTS: Record<string, string[]> = {
+  "attributes.city":  ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata", "Ahmedabad"],
+  "attributes.tier":  ["bronze", "silver", "gold", "platinum"],
+  "attributes.acquisition_channel": ["organic", "paid_instagram", "paid_google", "referral", "influencer"],
+  "tags": ["vip", "repeat_buyer", "lapsed", "new", "high_value", "coffee_lover", "gifter", "bulk_buyer"],
+};
+
+// ── API calls ──────────────────────────────────────────────────────────────
 
 export const segmentsApi = {
   list: () =>

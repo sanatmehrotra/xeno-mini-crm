@@ -4,17 +4,17 @@
  *
  * Renders a RuleGroup (AND/OR + list of conditions or nested groups).
  * Fields and operators are hardcoded to the same allowlist as the backend's
- * compile_rules() — see ADR-006. The UI will never offer a field the backend rejects.
+ * compile_rules() — see segments.ts for the mapping.
  */
-import { SEGMENT_FIELDS, SEGMENT_OPS, RuleGroup, RuleCondition, SegmentRule } from "@/lib/api/segments";
+import { SEGMENT_FIELDS, SEGMENT_OPS, FIELD_VALUE_HINTS, RuleGroup, RuleCondition, SegmentRule } from "@/lib/api/segments";
 
-/* ── Type guards ────────────────────────────────────────────────────────────── */
+// ── Type guards ────────────────────────────────────────────────────────────
 
 function isGroup(r: SegmentRule): r is RuleGroup {
   return "operator" in r;
 }
 
-/* ── Empty constructors ─────────────────────────────────────────────────────── */
+// ── Empty constructors ─────────────────────────────────────────────────────
 
 const emptyCondition = (): RuleCondition => ({
   field: "total_spent",
@@ -27,7 +27,7 @@ const emptyGroup = (): RuleGroup => ({
   conditions: [emptyCondition()],
 });
 
-/* ── Single condition row ───────────────────────────────────────────────────── */
+// ── Single condition row ───────────────────────────────────────────────────
 
 function ConditionRow({
   condition,
@@ -38,13 +38,21 @@ function ConditionRow({
   onChange: (c: RuleCondition) => void;
   onRemove: () => void;
 }) {
+  const hints = FIELD_VALUE_HINTS[condition.field];
+  const isCategorical = !!hints;
+
   return (
-    <div className="flex items-center gap-2 group">
+    <div className="flex items-center gap-2 group flex-wrap">
       {/* Field */}
       <select
-        className="input flex-1 text-xs"
+        className="input flex-1 min-w-[160px] text-xs"
         value={condition.field}
-        onChange={(e) => onChange({ ...condition, field: e.target.value })}
+        onChange={(e) => {
+          // Reset value when field changes
+          const newField = e.target.value;
+          const newHints = FIELD_VALUE_HINTS[newField];
+          onChange({ ...condition, field: newField, value: newHints ? newHints[0] : "0" });
+        }}
       >
         {SEGMENT_FIELDS.map((f) => (
           <option key={f.value} value={f.value}>{f.label}</option>
@@ -53,27 +61,67 @@ function ConditionRow({
 
       {/* Operator */}
       <select
-        className="input w-36 text-xs"
+        className="input w-32 text-xs"
         value={condition.op}
         onChange={(e) => onChange({ ...condition, op: e.target.value })}
       >
-        {SEGMENT_OPS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
+        {SEGMENT_OPS
+          .filter((o) => {
+            // For JSONB attributes only eq/neq/in make sense
+            if (condition.field.startsWith("attributes.")) {
+              return ["eq", "neq", "in"].includes(o.value);
+            }
+            // For tags only contains/in make sense
+            if (condition.field === "tags") {
+              return ["contains", "in"].includes(o.value);
+            }
+            return true;
+          })
+          .map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
       </select>
 
-      {/* Value */}
-      <input
-        className="input w-28 text-xs font-mono"
-        value={String(condition.value)}
-        onChange={(e) => onChange({ ...condition, value: e.target.value })}
-        placeholder="value"
-      />
+      {/* Value — dropdown for categorical, input for numeric */}
+      {isCategorical ? (
+        condition.op === "in" ? (
+          <select
+            className="input w-40 text-xs"
+            multiple
+            value={Array.isArray(condition.value) ? condition.value as string[] : [String(condition.value)]}
+            onChange={(e) => {
+              const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+              onChange({ ...condition, value: selected });
+            }}
+            style={{ height: "64px" }}
+          >
+            {hints.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+        ) : (
+          <select
+            className="input w-40 text-xs"
+            value={String(condition.value)}
+            onChange={(e) => onChange({ ...condition, value: e.target.value })}
+          >
+            {hints.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+        )
+      ) : (
+        <input
+          className="input w-28 text-xs font-mono"
+          value={String(condition.value)}
+          onChange={(e) => onChange({ ...condition, value: e.target.value })}
+          placeholder={condition.field.includes("days") ? "e.g. 30" : "e.g. 5000"}
+          type="number"
+          min="0"
+        />
+      )}
 
       {/* Remove */}
       <button
         onClick={onRemove}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-brick text-sm w-6"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-brick text-sm w-6 shrink-0"
+        title="Remove condition"
       >
         ✕
       </button>
@@ -81,7 +129,7 @@ function ConditionRow({
   );
 }
 
-/* ── Rule group (recursive) ─────────────────────────────────────────────────── */
+// ── Rule group (recursive) ─────────────────────────────────────────────────
 
 export function RuleGroupEditor({
   group,
@@ -113,10 +161,10 @@ export function RuleGroupEditor({
 
   return (
     <div
-      className={`space-y-3 ${depth > 0 ? "ml-4 pl-4 border-l-2 border-border rounded-l" : ""}`}
+      className={`space-y-3 ${depth > 0 ? "ml-4 pl-4 border-l-2 border-copper/30 rounded-l" : ""}`}
     >
-      {/* Operator pill */}
-      <div className="flex items-center gap-2">
+      {/* Operator pill + remove group */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-muted text-xs">Match</span>
         {(["AND", "OR"] as const).map((op) => (
           <button
