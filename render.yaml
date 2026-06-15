@@ -1,9 +1,6 @@
 # =============================================================================
 # render.yaml — BrewBharat CRM — Render Blueprint (3 services)
 # =============================================================================
-# ALL values come from .env files / Render dashboard — nothing hardcoded here.
-# Every  sync: false  var must be entered manually in Render dashboard.
-# =============================================================================
 
 services:
 
@@ -56,9 +53,10 @@ services:
         sync: false
       - key: HMAC_SECRET
         sync: false
-      # PORT is injected by Render automatically — do not set it here
 
   # ── 3. Frontend (Next.js) ─────────────────────────────────────────────────
+  # NODE_VERSION and NODE_ENV are NOT secrets — hardcoded here so Render
+  # always uses the correct Node version without needing manual input.
   - type: web
     name: brewbharat-console
     runtime: node
@@ -70,9 +68,9 @@ services:
     healthCheckPath: /login
     envVars:
       - key: NODE_ENV
-        sync: false
+        value: production
       - key: NODE_VERSION
-        sync: false
+        value: "20.11.0"
       - key: NEXT_PUBLIC_API_URL
         sync: false
       - key: NEXT_PUBLIC_WS_URL
