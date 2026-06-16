@@ -83,11 +83,17 @@ export default function NewCampaignPage() {
     if (!segId) return;
     setAILoading(true);
     try {
-      const res = await aiApi.draftMessage({ segment_id: segId, channel, goal: goal || undefined });
+      // Backend requires goal: str (non-optional) — send default if blank
+      const effectiveGoal = goal.trim() || "increase engagement and drive repeat purchases";
+      const res = await aiApi.draftMessage({ segment_id: segId, channel, goal: effectiveGoal });
       setMessage(res.data.data.message);
-      toast.success("AI draft generated!");
-    } catch {
-      toast.error("AI draft failed — check that OPENROUTER_API_KEY is set.");
+      toast.success("AI draft generated! ✨");
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.detail ??
+        err?.message ??
+        "AI draft failed — try again.";
+      toast.error(detail);
     } finally {
       setAILoading(false);
     }

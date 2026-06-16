@@ -42,7 +42,7 @@ router = APIRouter(prefix="/ai", tags=["?? AI"])
 class DraftMessageRequest(BaseModel):
     segment_id: str
     channel: str
-    goal: str
+    goal: str = "increase engagement and drive repeat purchases"
 
 
 class AgentChatRequest(BaseModel):

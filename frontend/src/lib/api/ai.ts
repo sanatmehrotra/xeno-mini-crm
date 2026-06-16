@@ -5,7 +5,7 @@ import apiClient from "./client";
 export interface DraftMessageRequest {
   segment_id: string;
   channel: string;
-  goal?: string;
+  goal?: string; // optional — backend defaults to "increase engagement..."
 }
 
 export interface DraftMessageResponse {
