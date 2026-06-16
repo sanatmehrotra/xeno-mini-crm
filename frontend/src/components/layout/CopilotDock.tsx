@@ -155,7 +155,7 @@ export default function CopilotDock() {
           <span className="text-copper text-lg">✨</span>
           <div>
             <p className="font-display text-sm font-medium text-parchment">AI Co-pilot</p>
-            <p className="text-muted text-[11px]">Powered by Claude 3.5</p>
+            <p className="text-muted text-[11px]">Powered by DeepSeek R1</p>
           </div>
           {loading && (
             <span className="w-1.5 h-1.5 rounded-full bg-copper animate-pulse ml-1" />

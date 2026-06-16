@@ -56,6 +56,15 @@ export const customersApi = {
   get: (id: string) =>
     apiClient.get<CustomerDetailResponse>(`/customers/${id}`),
 
+  create: (payload: {
+    name: string;
+    email: string;
+    phone?: string;
+    external_id?: string;
+    attributes?: Record<string, string>;
+    tags?: string[];
+  }) => apiClient.post<{ data: Customer; meta: Record<string, unknown> }>("/customers", payload),
+
   import: (customers: Partial<Customer>[]) =>
     apiClient.post("/customers/import", customers),
 };

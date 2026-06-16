@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customersApi, Customer } from "@/lib/api/customers";
+import { toast } from "sonner";
 
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
 
@@ -135,6 +136,229 @@ const SORT_OPTIONS = [
   { value: "name",             label: "Name" },
 ];
 
+/* ── Add Customer Modal ───────────────────────────────────────────────────── */
+
+function AddCustomerModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: "", email: "", phone: "",
+    city: "Mumbai", tier: "bronze", acquisition_channel: "organic",
+    tags: "",
+  });
+
+  const mut = useMutation({
+    mutationFn: () => customersApi.create({
+      name: form.name,
+      email: form.email,
+      phone: form.phone || undefined,
+      attributes: {
+        city: form.city,
+        tier: form.tier,
+        acquisition_channel: form.acquisition_channel,
+      },
+      tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      toast.success(`Customer "${form.name}" added`);
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail ?? "Failed to add customer");
+    },
+  });
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-espresso/60 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-md space-y-5 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg text-parchment">Add Customer</h2>
+            <button onClick={onClose} className="text-muted hover:text-parchment">✕</button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted mb-1">Name *</label>
+                <input className="input w-full" placeholder="Priya Sharma" value={form.name} onChange={set("name")} />
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Phone</label>
+                <input className="input w-full" placeholder="+91 98XXXXXXXX" value={form.phone} onChange={set("phone")} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Email *</label>
+              <input className="input w-full" type="email" placeholder="priya@email.com" value={form.email} onChange={set("email")} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-muted mb-1">City</label>
+                <select className="input w-full" value={form.city} onChange={set("city")}>
+                  {["Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Tier</label>
+                <select className="input w-full" value={form.tier} onChange={set("tier")}>
+                  {["bronze","silver","gold","platinum"].map((t) => (
+                    <option key={t} className="capitalize">{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted mb-1">Channel</label>
+                <select className="input w-full" value={form.acquisition_channel} onChange={set("acquisition_channel")}>
+                  {["organic","paid_instagram","paid_google","referral","influencer"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Tags <span className="opacity-60">(comma-separated)</span></label>
+              <input className="input w-full" placeholder="vip, coffee_lover, repeat_buyer" value={form.tags} onChange={set("tags")} />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              className="btn-primary flex-1"
+              disabled={!form.name || !form.email || mut.isPending}
+              onClick={() => mut.mutate()}
+            >
+              {mut.isPending ? "Adding…" : "Add Customer"}
+            </button>
+            <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── Import JSON/CSV Modal ────────────────────────────────────────────────── */
+
+function ImportModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<"json" | "csv">("json");
+  const [raw, setRaw] = useState("");
+  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      let records: any[];
+      if (tab === "json") {
+        records = JSON.parse(raw);
+      } else {
+        // Parse CSV: first row is headers
+        const lines = raw.trim().split("\n");
+        const headers = lines[0].split(",").map((h) => h.trim());
+        records = lines.slice(1).map((line) => {
+          const vals = line.split(",").map((v) => v.trim());
+          const obj: any = {};
+          headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
+          return obj;
+        });
+      }
+      const res = await customersApi.import(records);
+      return res.data.data as { imported: number; skipped: number };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      setResult(data);
+      toast.success(`Imported ${data.imported} customers, skipped ${data.skipped} duplicates`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail ?? "Import failed — check your data format");
+    },
+  });
+
+  const exampleJson = `[\n  {\n    "name": "Arjun Mehta",\n    "email": "arjun@email.com",\n    "phone": "+917788991234",\n    "total_spent": 5400,\n    "order_count": 3,\n    "attributes": { "city": "Delhi", "tier": "silver" },\n    "tags": ["repeat_buyer"]\n  }\n]`;
+
+  const exampleCsv = `name,email,phone,total_spent,order_count\nArjun Mehta,arjun@email.com,+917788991234,5400,3`;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-espresso/60 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-lg space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg text-parchment">Import Customers</h2>
+            <button onClick={onClose} className="text-muted hover:text-parchment">✕</button>
+          </div>
+
+          {/* Format tabs */}
+          <div className="flex gap-1 border-b border-border">
+            {(["json", "csv"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setRaw(""); setResult(null); }}
+                className={`px-4 py-2 text-xs font-mono uppercase border-b-2 -mb-px transition-colors ${
+                  tab === t ? "border-copper text-copper" : "border-transparent text-muted hover:text-parchment"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {result ? (
+            <div className="text-center py-6 space-y-2">
+              <p className="text-5xl">✅</p>
+              <p className="text-parchment font-medium">{result.imported} customers imported</p>
+              <p className="text-muted text-sm">{result.skipped} duplicates skipped</p>
+              <button className="btn-ghost text-xs mt-2" onClick={onClose}>Close</button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-muted uppercase tracking-wider">Paste {tab.toUpperCase()} data</label>
+                  <button
+                    className="text-copper text-xs hover:underline"
+                    onClick={() => setRaw(tab === "json" ? exampleJson : exampleCsv)}
+                  >
+                    Load example
+                  </button>
+                </div>
+                <textarea
+                  className="input w-full h-48 font-mono text-xs resize-none"
+                  placeholder={tab === "json" ? exampleJson : exampleCsv}
+                  value={raw}
+                  onChange={(e) => setRaw(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  className="btn-primary flex-1"
+                  disabled={!raw.trim() || mut.isPending}
+                  onClick={() => mut.mutate()}
+                >
+                  {mut.isPending ? (
+                    <span className="flex items-center gap-2 justify-center">
+                      <span className="w-4 h-4 border-2 border-espresso/40 border-t-espresso rounded-full animate-spin" />
+                      Importing…
+                    </span>
+                  ) : `Import ${tab.toUpperCase()}`}
+                </button>
+                <button className="btn-ghost" onClick={onClose}>Cancel</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function CustomersPage() {
   const [page,    setPage]    = useState(1);
   const [search,  setSearch]  = useState("");
@@ -143,6 +367,8 @@ export default function CustomersPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [cityFilter, setCityFilter] = useState("");
   const [tierFilter, setTierFilter] = useState("");
+  const [showAdd, setShowAdd]       = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["customers", page, search, sortBy, order, cityFilter, tierFilter],
@@ -169,8 +395,18 @@ export default function CustomersPage() {
           <h1 className="heading">Customers</h1>
           <p className="text-muted text-sm mt-1 font-mono">{total} customers</p>
         </div>
-        <button className="btn-primary">↑ Import</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-ghost text-sm px-3 py-2" onClick={() => setShowImport(true)}>
+            ↑ Import
+          </button>
+          <button className="btn-primary text-sm" onClick={() => setShowAdd(true)}>
+            + Add Customer
+          </button>
+        </div>
       </div>
+
+      {showAdd    && <AddCustomerModal onClose={() => setShowAdd(false)} />}
+      {showImport && <ImportModal      onClose={() => setShowImport(false)} />}
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
