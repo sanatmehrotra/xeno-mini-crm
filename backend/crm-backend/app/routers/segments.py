@@ -11,7 +11,7 @@ from app.core.database import get_db_dep
 from app.repositories import segment_repo
 from app.schemas.common import success
 from app.schemas.customer import CustomerOut
-from app.schemas.segment import SegmentCreate, SegmentFromNL, SegmentOut, SegmentPreviewOut
+from app.schemas.segment import SegmentCreate, SegmentFromNL, SegmentOut, SegmentPreview, SegmentPreviewOut
 from app.services import segment_service
 
 router = APIRouter(prefix="/segments", tags=["📊 Segments"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/segments", tags=["📊 Segments"])
 
 @router.post("/preview")
 async def preview_segment(
-    payload: SegmentCreate,
+    payload: SegmentPreview,
     db: AsyncSession = Depends(get_db_dep),
 ):
     """Dry-run: return count and sample without saving."""

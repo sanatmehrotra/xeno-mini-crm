@@ -9,6 +9,11 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class SegmentPreview(BaseModel):
+    """Payload for POST /segments/preview — only rules needed, no name."""
+    rules: dict[str, Any]
+
+
 class SegmentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
