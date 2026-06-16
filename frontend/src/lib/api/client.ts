@@ -10,7 +10,7 @@ import { useAuthStore } from "@/stores/auth";
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
   headers: { "Content-Type": "application/json" },
-  timeout: 30000,
+  timeout: 90_000, // 90s — AI endpoints (insights, draft-message) can take 30-40s
 });
 
 // Attach JWT on every request

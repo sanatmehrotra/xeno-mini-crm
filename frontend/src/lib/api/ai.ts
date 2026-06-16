@@ -14,7 +14,7 @@ export interface DraftMessageResponse {
 }
 
 export interface InsightsResponse {
-  data: { summary: string; recommendations: string[] };
+  data: { insights: string };
   meta: Record<string, unknown>;
 }
 

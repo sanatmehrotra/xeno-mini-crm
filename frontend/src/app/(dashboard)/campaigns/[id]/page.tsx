@@ -118,11 +118,16 @@ export default function CampaignDetailPage() {
     setInsightsLoading(true);
     try {
       const res = await aiApi.insights(id);
-      // Backend returns { data: { insights: "..." } } OR { data: { summary: "..." } }
-      const d = res.data.data as any;
-      setInsights(d.summary ?? d.insights ?? JSON.stringify(d));
-    } catch {
-      toast.error("Could not generate insights — try again.");
+      const text = res.data.data.insights;
+      if (!text) throw new Error("Empty response from AI");
+      setInsights(text);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ??
+        err?.message ??
+        "Could not generate insights — try again.";
+      toast.error(msg);
+      console.error("Insights error:", err);
     } finally {
       setInsightsLoading(false);
     }
@@ -392,6 +397,11 @@ export default function CampaignDetailPage() {
                   </span>
                 ) : campaign.status === "draft" ? "Launch first to get insights" : "✨ Generate Insights"}
               </button>
+              {insightsLoading && (
+                <p className="text-muted text-xs mt-1">
+                  Analyzing with DeepSeek R1 — this may take 20–30 seconds…
+                </p>
+              )}
             </>
           )}
         </div>
