@@ -19,21 +19,21 @@ export interface Campaign {
 
 export interface CampaignAnalytics {
   campaign_id: string;
-  total_sent: number;
-  funnel: {
-    queued: number;
-    sent: number;
-    delivered: number;
-    opened: number;
-    read: number;
-    clicked: number;
-    failed: number;
-  };
-  attribution: {
-    orders_count: number;
-    revenue: number;
-    attributed_customers: { customer_id: string; name: string; order_amount: number }[];
-  };
+  total_recipients: number;
+  // Delivery funnel — flat fields (no nested object)
+  queued: number;
+  sent: number;
+  delivered: number;
+  opened: number;
+  read: number;
+  clicked: number;
+  failed: number;
+  delivery_rate: number;
+  open_rate: number;
+  click_rate: number;
+  // Attribution — flat fields
+  attributed_orders: number;
+  attributed_revenue: number;
 }
 
 export const campaignsApi = {
