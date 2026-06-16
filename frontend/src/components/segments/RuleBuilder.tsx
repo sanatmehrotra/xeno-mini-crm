@@ -48,10 +48,20 @@ function ConditionRow({
         className="input flex-1 min-w-[160px] text-xs"
         value={condition.field}
         onChange={(e) => {
-          // Reset value when field changes
+          // Reset value and op when field changes
           const newField = e.target.value;
           const newHints = FIELD_VALUE_HINTS[newField];
-          onChange({ ...condition, field: newField, value: newHints ? newHints[0] : "0" });
+          
+          let newOp = condition.op;
+          if (newField.startsWith("attributes.")) {
+            if (!["eq", "neq", "in"].includes(newOp)) newOp = "eq";
+          } else if (newField === "tags") {
+            if (!["contains", "in"].includes(newOp)) newOp = "contains";
+          } else {
+            if (newOp === "contains") newOp = "eq";
+          }
+
+          onChange({ ...condition, field: newField, op: newOp, value: newHints ? newHints[0] : "0" });
         }}
       >
         {SEGMENT_FIELDS.map((f) => (
